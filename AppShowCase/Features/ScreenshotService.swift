@@ -20,7 +20,8 @@ enum ScreenshotService {
     static func capture(pixelBuffer: CVPixelBuffer,
                         style: DeviceFrameStyle,
                         background: WindowBackground,
-                        deviceName: String) throws -> URL {
+                        deviceName: String,
+                        copyToClipboard: Bool = true) throws -> URL {
         guard let screenImage = PixelBufferConverter.cgImage(from: pixelBuffer) else {
             throw ScreenshotError.noImage
         }
@@ -44,9 +45,11 @@ enum ScreenshotService {
         let url = try OutputFolders.fileURL(in: .picturesDirectory, fileName: name)
         try png.write(to: url)
 
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setData(png, forType: .png)
+        if copyToClipboard {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setData(png, forType: .png)
+        }
         return url
     }
 }

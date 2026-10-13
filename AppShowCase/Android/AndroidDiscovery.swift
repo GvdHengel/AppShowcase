@@ -45,7 +45,10 @@ final class AndroidDiscovery {
         guard let serverPath = Bundle.main.path(forResource: "scrcpy-server", ofType: nil) else {
             throw AndroidSetupError.serverMissing
         }
-        return AndroidScrcpySource(adb: adb, serial: serial, serverPath: serverPath, serverVersion: Self.scrcpyVersion)
+        return AndroidScrcpySource(
+            adb: adb, serial: serial, serverPath: serverPath,
+            serverVersion: Self.scrcpyVersion, quality: AndroidQuality.current()
+        )
     }
 
     /// Demo-hulpjes (scherm aan, aanrakingen, statusbalk) voor een Android-toestel.

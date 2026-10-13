@@ -36,6 +36,7 @@ actor ScrcpyServer {
     let serial: String
     let serverPath: String
     let version: String
+    let quality: AndroidQuality
     /// 31-bit willekeurig id; bepaalt de socketnaam op het toestel.
     let scid = UInt32.random(in: 1...0x7FFF_FFFF)
 
@@ -45,11 +46,12 @@ actor ScrcpyServer {
     private var isStopped = false
     private let logTail = LogTail()
 
-    init(adb: ADBClient, serial: String, serverPath: String, version: String) {
+    init(adb: ADBClient, serial: String, serverPath: String, version: String, quality: AndroidQuality = .normal) {
         self.adb = adb
         self.serial = serial
         self.serverPath = serverPath
         self.version = version
+        self.quality = quality
     }
 
     var socketName: String { String(format: "scrcpy_%08x", scid) }
@@ -84,9 +86,14 @@ actor ScrcpyServer {
     // MARK: - Intern
 
     private var serverArguments: [String] {
+        Self.serverArguments(serial: serial, scid: scid, version: version, quality: quality)
+    }
+
+    /// De volledige `adb shell`-aanroep voor scrcpy-server (puur, getest).
+    static func serverArguments(serial: String, scid: UInt32, version: String, quality: AndroidQuality) -> [String] {
         [
             "-s", serial, "shell",
-            "CLASSPATH=\(Self.remotePath)",
+            "CLASSPATH=\(remotePath)",
             "app_process", "/", "com.genymobile.scrcpy.Server", version,
             String(format: "scid=%08x", scid),
             "log_level=info",
@@ -94,8 +101,8 @@ actor ScrcpyServer {
             "audio=false",
             "control=false",
             "video_codec=h264",
-            "max_fps=60",
-            "video_bit_rate=8000000",
+            "max_fps=\(quality.maxFPS)",
+            "video_bit_rate=\(quality.bitRate)",
             // send_dummy_byte, send_device_meta, send_codec_meta en send_frame_meta staan standaard aan.
         ]
     }

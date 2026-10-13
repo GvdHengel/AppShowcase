@@ -40,6 +40,14 @@ AppShowCase/
 - Schermafbeelding/opname renderen het frame met `ImageRenderer` via `DeviceFrameView(parts:)`; de opname stelt per frame samen met Core Image (behuizing + video met afgeronde-hoekenmasker + notch/eiland). Uitvoer: H.264 `.mov`, max. 2160 px lange zijde, even maten.
 - Android-demomodus (`AndroidDemoMode`): bewaart oorspronkelijke `settings`, zet ze terug bij uitzetten, venster sluiten en (via `ADBCleanup.registerRestore`) bij afsluiten.
 
+## Afwerking (fase 5)
+
+- `QuickTimeMonitor` (NSWorkspace launch/terminate): toestelvenster toont bij iPhone zonder beeld + QuickTime open een kaart met "Sluit QuickTime"; verbindt na afsluiten vanzelf opnieuw.
+- Instellingen in `AppSettingsKey` (UserDefaults/`@AppStorage`); Android-kwaliteit (`AndroidQuality`) gaat via `ScrcpyServer.serverArguments` naar de server.
+- Hulpvenster (`HelpView`, ⌘?), instellingen (`SettingsView`, ⌘,), Over-venster met scrcpy-vermelding (`AppCommands`).
+- App-icoon: eigen ontwerp (twee generieke telefoons), PNG's in `AppIcon.appiconset`.
+- Release: `scripts/build-release.sh` (Universal via `-target`, ad-hoc, zip met `ditto`; `--publish` maakt GitHub Release met `docs/release-notes-<versie>.md`).
+
 ## Belangrijke technische lessen (uit de prototypes)
 
 ### iOS

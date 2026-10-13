@@ -8,6 +8,8 @@ struct DeviceWindowView: View {
     @Environment(DeviceRegistry.self) private var registry
     @Environment(IOSDiscovery.self) private var iosDiscovery
     @Environment(AndroidDiscovery.self) private var androidDiscovery
+    @Environment(QuickTimeMonitor.self) private var quickTime
+    @AppStorage(AppSettingsKey.copyScreenshotToClipboard) private var copyScreenshotToClipboard = true
 
     @State private var session: MirrorSession?
     @State private var demoMode: AndroidDemoMode?
@@ -46,6 +48,16 @@ struct DeviceWindowView: View {
         session?.state == .mirroring
     }
 
+    /// iPhone zonder beeld terwijl QuickTime draait: waarschijnlijk houdt QuickTime het scherm bezet.
+    private var showsQuickTimeHint: Bool {
+        guard let device, device.platform == .iOS, !device.id.rawID.hasPrefix("demo-"),
+              quickTime.isRunning, let state = session?.state else { return false }
+        switch state {
+        case .failed, .waiting: return true
+        case .idle, .connecting, .mirroring: return false
+        }
+    }
+
     var body: some View {
         ZStack {
             background.color
@@ -55,7 +67,13 @@ struct DeviceWindowView: View {
                 DeviceFrameView(style: frameStyle(for: device), screenSize: screenSize) {
                     VideoDisplayView(videoLayer: session.displayLayer)
                 }
-                .overlay { MirrorStateOverlay(state: session.state, retry: connect) }
+                .overlay {
+                    if showsQuickTimeHint {
+                        QuickTimeCard(quit: { quickTime.quit() }, retry: connect)
+                    } else {
+                        MirrorStateOverlay(state: session.state, retry: connect)
+                    }
+                }
                 .padding(padding)
                 .contextMenu {
                     captureButtons
@@ -100,6 +118,14 @@ struct DeviceWindowView: View {
         .frame(minWidth: 240, minHeight: 300)
         // Opnieuw verbinden zodra het toestel (weer) verschijnt, verdwijnt of bruikbaar wordt.
         .task(id: connectionKey) { connect() }
+        // QuickTime gestopt terwijl we geen beeld hadden: vanzelf opnieuw verbinden.
+        .onChange(of: quickTime.isRunning) { _, running in
+            guard !running, device?.platform == .iOS, session?.state != .mirroring else { return }
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                connect()
+            }
+        }
         .task(id: toast) {
             guard toast != nil else { return }
             try? await Task.sleep(for: .seconds(5))
@@ -320,9 +346,13 @@ struct DeviceWindowView: View {
                 pixelBuffer: pixelBuffer,
                 style: frameStyle(for: device),
                 background: background,
-                deviceName: device.name
+                deviceName: device.name,
+                copyToClipboard: copyScreenshotToClipboard
             )
-            toast = Toast(text: "Schermafbeelding bewaard en gekopieerd", url: url)
+            toast = Toast(
+                text: copyScreenshotToClipboard ? "Schermafbeelding bewaard en gekopieerd" : "Schermafbeelding bewaard",
+                url: url
+            )
         } catch {
             toast = Toast(text: error.localizedDescription)
         }
@@ -454,6 +484,32 @@ private struct Toast: Equatable {
     let id = UUID()
     let text: String
     var url: URL? = nil
+}
+
+/// Uitleg als QuickTime Player waarschijnlijk het iPhone-scherm bezet houdt.
+private struct QuickTimeCard: View {
+    let quit: () -> Void
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "play.rectangle.on.rectangle")
+                .font(.system(size: 30))
+            Text("QuickTime Player is geopend")
+                .font(.headline)
+            Text("QuickTime kan het scherm van je iPhone bezet houden. Sluit QuickTime; dit venster verbindt daarna vanzelf opnieuw.")
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("Sluit QuickTime", action: quit)
+                    .buttonStyle(.borderedProminent)
+                Button("Opnieuw proberen", action: retry)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: 280)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
 }
 
 /// Status over het beeld heen: verbinden, wachten of fout.

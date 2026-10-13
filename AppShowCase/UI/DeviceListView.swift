@@ -7,7 +7,7 @@ struct DeviceListView: View {
     @Environment(IOSDiscovery.self) private var iosDiscovery
     @Environment(AndroidDiscovery.self) private var androidDiscovery
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("autoOpenWindows") private var autoOpenWindows = true
+    @AppStorage(AppSettingsKey.autoOpenWindows) private var autoOpenWindows = true
 
     /// Toestellen die klaar zijn om te tonen (dus niet "Tik op Toestaan" e.d.).
     private var readyDeviceIDs: Set<DeviceID> {

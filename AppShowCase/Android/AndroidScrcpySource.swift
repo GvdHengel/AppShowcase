@@ -15,6 +15,7 @@ final class AndroidScrcpySource: FrameSource, @unchecked Sendable {
     private let serial: String
     private let serverPath: String
     private let serverVersion: String
+    private let quality: AndroidQuality
 
     // Alleen op de main thread gebruikt.
     private var server: ScrcpyServer?
@@ -32,11 +33,12 @@ final class AndroidScrcpySource: FrameSource, @unchecked Sendable {
     /// Zo vaak proberen we te verbinden voordat de server luistert (× 250 ms ≈ 10 s).
     private let maxConnectAttempts = 40
 
-    init(adb: ADBClient, serial: String, serverPath: String, serverVersion: String) {
+    init(adb: ADBClient, serial: String, serverPath: String, serverVersion: String, quality: AndroidQuality = .normal) {
         self.adb = adb
         self.serial = serial
         self.serverPath = serverPath
         self.serverVersion = serverVersion
+        self.quality = quality
         queue = DispatchQueue(label: "nl.gvdhengel.AppShowCase.android.\(serial)", qos: .userInteractive)
         decoder = H264Decoder(deliveryQueue: queue)
         decoder.onFrame = { [weak self] sampleBuffer, size in
@@ -45,7 +47,7 @@ final class AndroidScrcpySource: FrameSource, @unchecked Sendable {
     }
 
     func start() {
-        let server = ScrcpyServer(adb: adb, serial: serial, serverPath: serverPath, version: serverVersion)
+        let server = ScrcpyServer(adb: adb, serial: serial, serverPath: serverPath, version: serverVersion, quality: quality)
         self.server = server
 
         startTask = Task { [weak self] in

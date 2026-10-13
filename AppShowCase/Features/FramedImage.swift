@@ -106,12 +106,24 @@ enum FramedImageRenderer {
 /// Mappen voor schermafbeeldingen en opnames, met leesbare bestandsnamen.
 enum OutputFolders {
     static func fileURL(in directory: FileManager.SearchPathDirectory, fileName: String) throws -> URL {
+        try folderURL(in: directory).appendingPathComponent(fileName)
+    }
+
+    /// `~/Pictures/AppShowCase` of `~/Movies/AppShowCase`; wordt zo nodig aangemaakt.
+    static func folderURL(in directory: FileManager.SearchPathDirectory) throws -> URL {
         guard let base = FileManager.default.urls(for: directory, in: .userDomainMask).first else {
             throw CocoaError(.fileNoSuchFile)
         }
         let folder = base.appendingPathComponent("AppShowCase", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        return folder.appendingPathComponent(fileName)
+        return folder
+    }
+
+    /// Opent de map in de Finder.
+    @MainActor
+    static func reveal(_ directory: FileManager.SearchPathDirectory) {
+        guard let folder = try? folderURL(in: directory) else { return }
+        NSWorkspace.shared.open(folder)
     }
 
     /// Bijv. "2026-10-13 om 19.05.12".
