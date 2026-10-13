@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// Welke lagen `DeviceFrameView` tekent (de opname rendert ze los).
+struct DeviceFrameParts: OptionSet, Sendable {
+    let rawValue: Int
+    static let body = DeviceFrameParts(rawValue: 1 << 0)
+    static let screen = DeviceFrameParts(rawValue: 1 << 1)
+    static let cutout = DeviceFrameParts(rawValue: 1 << 2)
+    static let all: DeviceFrameParts = [.body, .screen, .cutout]
+}
+
 /// Tekent een toestelframe rond het live beeld.
 ///
 /// Drie lagen: behuizing (onder), beeld (midden), uitsparing zoals notch of eiland (boven).
@@ -9,6 +18,7 @@ struct DeviceFrameView<Screen: View>: View {
     let style: DeviceFrameStyle
     /// Pixelafmetingen van het beeld; bepaalt beeldverhouding en staand/liggend.
     let screenSize: CGSize
+    var parts: DeviceFrameParts = .all
     @ViewBuilder let screen: () -> Screen
 
     var body: some View {
@@ -17,17 +27,19 @@ struct DeviceFrameView<Screen: View>: View {
             let screenRect = layout.displayScreenRect
 
             ZStack(alignment: .topLeading) {
-                if style.drawsBody {
+                if style.drawsBody && parts.contains(.body) {
                     rotated(layout) { FrameBodyCanvas(style: style, layout: layout) }
                         .shadow(color: .black.opacity(0.35), radius: layout.scale * 0.03, y: layout.scale * 0.015)
                 }
 
-                screen()
-                    .frame(width: screenRect.width, height: screenRect.height)
-                    .clipShape(RoundedRectangle(cornerRadius: layout.screenCornerRadius, style: .continuous))
-                    .offset(x: screenRect.minX, y: screenRect.minY)
+                if parts.contains(.screen) {
+                    screen()
+                        .frame(width: screenRect.width, height: screenRect.height)
+                        .clipShape(RoundedRectangle(cornerRadius: layout.screenCornerRadius, style: .continuous))
+                        .offset(x: screenRect.minX, y: screenRect.minY)
+                }
 
-                if layout.cutout != nil {
+                if layout.cutout != nil && parts.contains(.cutout) {
                     rotated(layout) { CutoutCanvas(layout: layout) }
                         .allowsHitTesting(false)
                 }

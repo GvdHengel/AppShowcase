@@ -24,6 +24,8 @@ final class MirrorSession {
 
     /// De layer waarop frames getoond worden. Thread-safe genoeg om vanaf de bron-queue te vullen.
     @ObservationIgnored let displayLayer = AVSampleBufferDisplayLayer()
+    /// Laatste frame (schermafbeelding) en doorgifte naar de opname.
+    @ObservationIgnored let frameTap = FrameTap()
     @ObservationIgnored private var source: FrameSource?
     @ObservationIgnored private var noSignalTask: Task<Void, Never>?
 
@@ -42,8 +44,10 @@ final class MirrorSession {
         state = .connecting
 
         let layer = displayLayer
+        let tap = frameTap
         newSource.frameHandler = { sampleBuffer in
             MirrorSession.enqueue(sampleBuffer, on: layer)
+            tap.receive(sampleBuffer)
         }
         newSource.eventHandler = { [weak self] event in
             Task { @MainActor in self?.handle(event) }
@@ -61,6 +65,7 @@ final class MirrorSession {
             source.stop()
         }
         source = nil
+        frameTap.clear()
         clearDisplay()
         state = .idle
     }

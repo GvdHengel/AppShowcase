@@ -7,6 +7,12 @@ struct DeviceListView: View {
     @Environment(IOSDiscovery.self) private var iosDiscovery
     @Environment(AndroidDiscovery.self) private var androidDiscovery
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("autoOpenWindows") private var autoOpenWindows = true
+
+    /// Toestellen die klaar zijn om te tonen (dus niet "Tik op Toestaan" e.d.).
+    private var readyDeviceIDs: Set<DeviceID> {
+        Set(registry.devices.filter { $0.statusMessage == nil }.map(\.id))
+    }
 
     var body: some View {
         List {
@@ -30,8 +36,19 @@ struct DeviceListView: View {
                     }
                 }
             }
+
+            Section("Opties") {
+                Toggle("Venster openen bij aansluiten", isOn: $autoOpenWindows)
+            }
         }
         .listStyle(.sidebar)
+        // Nieuw (of nu pas toegestaan) toestel: meteen een eigen venster openen.
+        .onChange(of: readyDeviceIDs) { previous, current in
+            guard autoOpenWindows else { return }
+            for id in current.subtracting(previous) {
+                openWindow(id: WindowID.device, value: id)
+            }
+        }
         .navigationTitle("Apparaten")
         .modifier(DeveloperToolbar(registry: registry))
         // Na terugkomen uit Systeeminstellingen opnieuw controleren.

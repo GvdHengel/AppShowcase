@@ -6,6 +6,9 @@ Toon het scherm van een **iPhone/iPad** of **Android-toestel** live op je Mac, i
 - Werkt via USB, zonder app op het toestel.
 - Alleen kijken, niet bedienen.
 - Generieke toestelframes (iPhone met notch/eiland/thuisknop, Android met randen/camera-gaatje, tablet), automatisch gekozen en per toestel aan te passen. Achtergrond donker, licht of transparant.
+- Schermafbeelding (⇧⌘S) en schermopname (⇧⌘R) mét toestelframe, in `Afbeeldingen/AppShowCase` en `Films/AppShowCase`.
+- Venster altijd bovenop, vaste groottes, en automatisch openen bij aansluiten.
+- Android-demo: scherm aan houden, aanrakingen tonen, schone statusbalk (9:41) — wordt na afloop teruggezet.
 - macOS 14 (Sonoma) of nieuwer, Intel en Apple Silicon.
 
 > **Status:** in ontwikkeling. Zie [Roadmap](#roadmap).
@@ -53,7 +56,7 @@ AppShowCase gebruikt bij voorkeur een al geïnstalleerde `adb` (Android Studio o
 | 1 | iOS live beeld | ✅ |
 | 2 | Android live beeld (scrcpy) | ✅ |
 | 3 | Echte toestelframes | ✅ |
-| 4 | Screenshot, opname, demo-functies | ⏳ |
+| 4 | Screenshot, opname, demo-functies | 🔨 te testen |
 | 5 | Afwerking en release-build | ⏳ |
 
 ## Met dank aan

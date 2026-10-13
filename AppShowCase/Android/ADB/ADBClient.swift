@@ -122,9 +122,16 @@ final class ADBCleanup: @unchecked Sendable {
         let port: UInt16
     }
 
+    private struct Restore {
+        let adbPath: String
+        let serial: String
+        let shellCommands: [[String]]
+    }
+
     private let lock = NSLock()
     private var processes: [ObjectIdentifier: Process] = [:]
     private var forwards: [UUID: Forward] = [:]
+    private var restores: [UUID: Restore] = [:]
 
     func register(_ process: Process) {
         lock.withLock { processes[ObjectIdentifier(process)] = process }
@@ -144,22 +151,45 @@ final class ADBCleanup: @unchecked Sendable {
         _ = lock.withLock { forwards.removeValue(forKey: key) }
     }
 
+    /// Instellingen die bij afsluiten teruggezet moeten worden (bijv. Android-demomodus).
+    func registerRestore(adbPath: String, serial: String, shellCommands: [[String]]) -> UUID {
+        let key = UUID()
+        lock.withLock { restores[key] = Restore(adbPath: adbPath, serial: serial, shellCommands: shellCommands) }
+        return key
+    }
+
+    func unregisterRestore(_ key: UUID) {
+        _ = lock.withLock { restores.removeValue(forKey: key) }
+    }
+
     /// Synchroon opruimen; bedoeld voor `applicationWillTerminate`.
     func cleanUpEverything() {
-        let (running, tunnels) = lock.withLock { (Array(processes.values), Array(forwards.values)) }
+        let (running, tunnels, pendingRestores) = lock.withLock {
+            (Array(processes.values), Array(forwards.values), Array(restores.values))
+        }
+        for restore in pendingRestores {
+            for command in restore.shellCommands {
+                Self.runSync(adbPath: restore.adbPath, arguments: ["-s", restore.serial, "shell"] + command)
+            }
+        }
         running.forEach { $0.terminate() }
         for tunnel in tunnels {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: tunnel.adbPath)
-            process.arguments = ["-s", tunnel.serial, "forward", "--remove", "tcp:\(tunnel.port)"]
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            try? process.run()
-            process.waitUntilExit()
+            Self.runSync(adbPath: tunnel.adbPath, arguments: ["-s", tunnel.serial, "forward", "--remove", "tcp:\(tunnel.port)"])
         }
         lock.withLock {
             processes.removeAll()
             forwards.removeAll()
+            restores.removeAll()
         }
+    }
+
+    private static func runSync(adbPath: String, arguments: [String]) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: adbPath)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
     }
 }

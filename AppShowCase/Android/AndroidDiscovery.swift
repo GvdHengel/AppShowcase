@@ -48,6 +48,11 @@ final class AndroidDiscovery {
         return AndroidScrcpySource(adb: adb, serial: serial, serverPath: serverPath, serverVersion: Self.scrcpyVersion)
     }
 
+    /// Demo-hulpjes (scherm aan, aanrakingen, statusbalk) voor een Android-toestel.
+    func makeDemoMode(serial: String) -> AndroidDemoMode? {
+        adb.map { AndroidDemoMode(adb: $0, serial: serial) }
+    }
+
     /// Versie van de meegeleverde scrcpy-server (moet exact overeenkomen met wat we de server vertellen).
     static var scrcpyVersion: String {
         guard let url = Bundle.main.url(forResource: "scrcpy-server", withExtension: "version"),

@@ -1,23 +1,32 @@
+import AppKit
 import SwiftUI
 
-/// Venster voor één toestel: live beeld in een toestelframe.
+/// Venster voor één toestel: live beeld in een toestelframe, met schermafbeelding, opname en demo-opties.
 struct DeviceWindowView: View {
     let deviceID: DeviceID?
 
     @Environment(DeviceRegistry.self) private var registry
     @Environment(IOSDiscovery.self) private var iosDiscovery
     @Environment(AndroidDiscovery.self) private var androidDiscovery
-    @State private var session: MirrorSession?
 
-    /// Per toestel onthouden: gekozen frame ("auto" of een frame-id) en achtergrond.
+    @State private var session: MirrorSession?
+    @State private var demoMode: AndroidDemoMode?
+    @State private var recorder: FramedRecorder?
+    @State private var recordingStarted: Date?
+    @State private var toast: Toast?
+    @State private var windowReference = WindowReference()
+
+    /// Per toestel onthouden: frame ("auto" of frame-id), achtergrond en altijd bovenop.
     @AppStorage private var frameChoice: String
     @AppStorage private var backgroundChoice: String
+    @AppStorage private var floating: Bool
 
     init(deviceID: DeviceID?) {
         self.deviceID = deviceID
         let key = deviceID?.description ?? "onbekend"
         _frameChoice = AppStorage(wrappedValue: DeviceFrameStyle.automaticID, "frame.\(key)")
         _backgroundChoice = AppStorage(wrappedValue: WindowBackground.dark.rawValue, "background.\(key)")
+        _floating = AppStorage(wrappedValue: false, "floating.\(key)")
     }
 
     private var device: DeviceInfo? {
@@ -26,6 +35,14 @@ struct DeviceWindowView: View {
 
     private var background: WindowBackground {
         WindowBackground(rawValue: backgroundChoice) ?? .dark
+    }
+
+    private var padding: CGFloat {
+        background == .transparent ? 10 : 24
+    }
+
+    private var isMirroring: Bool {
+        session?.state == .mirroring
     }
 
     var body: some View {
@@ -38,8 +55,12 @@ struct DeviceWindowView: View {
                     VideoDisplayView(videoLayer: session.displayLayer)
                 }
                 .overlay { MirrorStateOverlay(state: session.state, retry: connect) }
-                .padding(background == .transparent ? 10 : 24)
-                .contextMenu { displayOptions }
+                .padding(padding)
+                .contextMenu {
+                    captureButtons
+                    Divider()
+                    displayOptions
+                }
             } else if device == nil {
                 ContentUnavailableView(
                     "Toestel niet verbonden",
@@ -49,27 +70,66 @@ struct DeviceWindowView: View {
                 .foregroundStyle(background == .light ? Color.primary : Color.white)
             }
         }
-        .background(WindowConfigurator(transparent: background == .transparent))
+        .overlay(alignment: .bottom) { toastView }
+        .background(WindowConfigurator(transparent: background == .transparent, floating: floating, reference: windowReference))
         .navigationTitle(device?.name ?? "Toestel")
         .navigationSubtitle(resolutionText)
         .toolbar {
-            ToolbarItem {
+            ToolbarItemGroup {
+                if let recordingStarted {
+                    TimelineView(.periodic(from: recordingStarted, by: 1)) { context in
+                        Label(Self.elapsed(since: recordingStarted, now: context.date), systemImage: "record.circle.fill")
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(.red)
+                            .monospacedDigit()
+                    }
+                }
+                captureButtons
                 Menu {
                     displayOptions
                 } label: {
                     Label("Weergave", systemImage: "iphone.gen3")
                 }
-                .help("Toestelframe en achtergrond")
+                .help("Frame, achtergrond, venster en demo-opties")
             }
         }
         .toolbarBackground(background == .transparent ? .hidden : .automatic, for: .windowToolbar)
         .frame(minWidth: 240, minHeight: 300)
         // Opnieuw verbinden zodra het toestel (weer) verschijnt, verdwijnt of bruikbaar wordt.
         .task(id: connectionKey) { connect() }
-        .onDisappear { session?.stop() }
+        .task(id: toast) {
+            guard toast != nil else { return }
+            try? await Task.sleep(for: .seconds(5))
+            toast = nil
+        }
+        .onDisappear {
+            stopRecording()
+            if let demoMode {
+                Task { await demoMode.restoreAll() }
+            }
+            session?.stop()
+        }
     }
 
-    // MARK: - Weergave-opties (toolbar én rechtermuisklik)
+    // MARK: - Knoppen en menu's
+
+    @ViewBuilder
+    private var captureButtons: some View {
+        Button(action: takeScreenshot) {
+            Label("Schermafbeelding", systemImage: "camera")
+        }
+        .keyboardShortcut("s", modifiers: [.command, .shift])
+        .disabled(!isMirroring)
+        .help("Schermafbeelding mét frame (⇧⌘S) — bewaard in Afbeeldingen/AppShowCase en gekopieerd")
+
+        Button(action: toggleRecording) {
+            Label(recorder == nil ? "Opnemen" : "Stop opname",
+                  systemImage: recorder == nil ? "record.circle" : "stop.circle.fill")
+        }
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+        .disabled(recorder == nil && !isMirroring)
+        .help("Opname mét frame (⇧⌘R) — bewaard in Films/AppShowCase")
+    }
 
     @ViewBuilder
     private var displayOptions: some View {
@@ -87,7 +147,58 @@ struct DeviceWindowView: View {
             }
         }
         .pickerStyle(.inline)
+
+        Section("Venster") {
+            Toggle("Altijd bovenop", isOn: $floating)
+            Menu("Venstergrootte") {
+                ForEach(WindowSizePreset.allCases) { preset in
+                    Button(preset.name) { resize(to: preset) }
+                }
+            }
+            .disabled(session?.videoSize == nil)
+        }
+
+        if let demoMode {
+            Section("Android-demo") {
+                Toggle("Scherm aan houden", isOn: Binding(
+                    get: { demoMode.stayAwake },
+                    set: { value in Task { await demoMode.setStayAwake(value) } }
+                ))
+                Toggle("Aanrakingen tonen", isOn: Binding(
+                    get: { demoMode.showTouches },
+                    set: { value in Task { await demoMode.setShowTouches(value) } }
+                ))
+                Toggle("Schone statusbalk (9:41, vol)", isOn: Binding(
+                    get: { demoMode.cleanStatusBar },
+                    set: { value in Task { await demoMode.setCleanStatusBar(value) } }
+                ))
+            }
+        }
     }
+
+    @ViewBuilder
+    private var toastView: some View {
+        if let toast {
+            HStack(spacing: 10) {
+                Text(toast.text)
+                    .lineLimit(2)
+                if let url = toast.url {
+                    Button("Toon in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                    .buttonStyle(.link)
+                }
+            }
+            .font(.callout)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: Capsule())
+            .padding(.bottom, 14)
+            .transition(.opacity)
+        }
+    }
+
+    // MARK: - Frame en maat
 
     private var automaticStyle: DeviceFrameStyle {
         FrameMatcher.automaticStyle(platform: device?.platform ?? .iOS, screenSize: session?.videoSize)
@@ -111,6 +222,120 @@ struct DeviceWindowView: View {
         return "\(Int(size.width)) × \(Int(size.height))"
     }
 
+    private func resize(to preset: WindowSizePreset) {
+        guard let window = windowReference.window, let device, let videoSize = session?.videoSize else { return }
+        let style = frameStyle(for: device)
+        let probe = FrameLayout(style: style, screenSize: videoSize, fitting: CGSize(width: 100_000, height: 100_000))
+        let probeScreen = probe.displayScreenRect
+        let probeLong = max(probeScreen.width, probeScreen.height)
+        guard probeLong > 0 else { return }
+
+        let target = preset.screenLongSide(
+            pixelLongSide: max(videoSize.width, videoSize.height),
+            backingScale: window.backingScaleFactor
+        )
+        let factor = target / probeLong
+        window.setContentSize(CGSize(
+            width: (probe.displaySize.width * factor + 2 * padding).rounded(),
+            height: (probe.displaySize.height * factor + 2 * padding).rounded()
+        ))
+    }
+
+    // MARK: - Schermafbeelding en opname
+
+    private func takeScreenshot() {
+        guard let device, let pixelBuffer = session?.frameTap.latestPixelBuffer else {
+            toast = Toast(text: ScreenshotError.noImage.localizedDescription)
+            return
+        }
+        do {
+            let url = try ScreenshotService.capture(
+                pixelBuffer: pixelBuffer,
+                style: frameStyle(for: device),
+                background: background,
+                deviceName: device.name
+            )
+            toast = Toast(text: "Schermafbeelding bewaard en gekopieerd", url: url)
+        } catch {
+            toast = Toast(text: error.localizedDescription)
+        }
+    }
+
+    private func toggleRecording() {
+        if recorder == nil {
+            startRecording()
+        } else {
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        guard let device, let session, let pixelBuffer = session.frameTap.latestPixelBuffer else {
+            toast = Toast(text: RecorderError.noImage.localizedDescription)
+            return
+        }
+        let style = frameStyle(for: device)
+        // Video kent geen transparantie: dan op zwart.
+        let backgroundColor = background == .transparent ? Color.black : background.color
+        let screenSize = PixelBufferConverter.visibleImage(pixelBuffer).extent.size
+        let natural = FramedCanvas.naturalOutputSize(style: style, screenSize: screenSize,
+                                                     paddingFraction: 0.05, maxLongSide: 2160)
+        let outputSize = natural.size
+        let outputPadding = natural.padding
+
+        guard let initialLayers = RecordingLayers.make(
+            style: style, background: backgroundColor, outputSize: outputSize,
+            padding: outputPadding, screenSize: screenSize
+        ) else {
+            toast = Toast(text: RecorderError.cannotRecord.localizedDescription)
+            return
+        }
+
+        do {
+            let name = "\(OutputFolders.safeName(device.name)) \(OutputFolders.timestamp()).mov"
+            let url = try OutputFolders.fileURL(in: .moviesDirectory, fileName: name)
+            let newRecorder = try FramedRecorder(
+                url: url,
+                outputSize: outputSize,
+                initialLayers: initialLayers,
+                makeLayers: { size in
+                    RecordingLayers.make(style: style, background: backgroundColor, outputSize: outputSize,
+                                         padding: outputPadding, screenSize: size)
+                }
+            )
+            session.frameTap.setConsumer { [weak newRecorder] pixelBuffer in
+                newRecorder?.append(pixelBuffer)
+            }
+            recorder = newRecorder
+            recordingStarted = Date()
+        } catch {
+            toast = Toast(text: error.localizedDescription)
+        }
+    }
+
+    private func stopRecording() {
+        guard let current = recorder else { return }
+        session?.frameTap.setConsumer(nil)
+        recorder = nil
+        recordingStarted = nil
+
+        current.finish { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let url):
+                    toast = Toast(text: "Opname bewaard", url: url)
+                case .failure(let error):
+                    toast = Toast(text: error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    nonisolated static func elapsed(since start: Date, now: Date) -> String {
+        let seconds = max(0, Int(now.timeIntervalSince(start)))
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
     // MARK: - Verbinden
 
     private var connectionKey: String {
@@ -120,6 +345,7 @@ struct DeviceWindowView: View {
 
     private func connect() {
         guard let device else {
+            stopRecording()
             session?.stop()
             return
         }
@@ -143,6 +369,9 @@ struct DeviceWindowView: View {
                 current.markUnavailable("Het toestel is niet meer beschikbaar. Sluit het opnieuw aan.")
             }
         case .android:
+            if demoMode?.serial != device.id.rawID {
+                demoMode = androidDiscovery.makeDemoMode(serial: device.id.rawID)
+            }
             do {
                 let source = try androidDiscovery.makeSource(serial: device.id.rawID)
                 current.start(with: source)
@@ -151,6 +380,13 @@ struct DeviceWindowView: View {
             }
         }
     }
+}
+
+/// Korte melding onderin het venster.
+private struct Toast: Equatable {
+    let id = UUID()
+    let text: String
+    var url: URL? = nil
 }
 
 /// Status over het beeld heen: verbinden, wachten of fout.

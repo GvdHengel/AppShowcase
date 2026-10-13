@@ -24,7 +24,7 @@ AppShowCase/
 ├── Android/    (fase 2) ADB/ en Scrcpy/: launcher, protocol-parser, VTDecompressionSession
 ├── Rendering/  VideoDisplayView (AVSampleBufferDisplayLayer), DeviceFrameView (behuizing + beeld + uitsparing)
 ├── Frames/     DeviceFrameStyle (catalogus), FrameMatcher (auto-keuze), FrameLayout (geometrie, ook liggend)
-├── Features/   (fase 4) screenshot, opname, Android demo-modus
+├── Features/   FramedImage (uitsnede, FramedCanvas, renderer), ScreenshotService, FramedRecorder (AVAssetWriter + Core Image)
 └── UI/         SwiftUI-views
 ```
 
@@ -33,6 +33,12 @@ AppShowCase/
 - Eigen, generieke tekeningen in code (geen logo's of officiële afbeeldingen) zodat ze in de repo mogen.
 - Rekenen in staande coördinaten; liggend = canvas 90° tegen de klok in gedraaid (bovenkant toestel links). Het videobeeld komt al liggend binnen en wordt niet gedraaid.
 - Keuze en achtergrond per toestel in UserDefaults: `frame.<DeviceID>` ("auto" of frame-id) en `background.<DeviceID>`.
+
+## Demo-functies
+
+- `MirrorSession.frameTap` bewaart het laatste frame (schermafbeelding) en geeft frames door aan de opname.
+- Schermafbeelding/opname renderen het frame met `ImageRenderer` via `DeviceFrameView(parts:)`; de opname stelt per frame samen met Core Image (behuizing + video met afgeronde-hoekenmasker + notch/eiland). Uitvoer: H.264 `.mov`, max. 2160 px lange zijde, even maten.
+- Android-demomodus (`AndroidDemoMode`): bewaart oorspronkelijke `settings`, zet ze terug bij uitzetten, venster sluiten en (via `ADBCleanup.registerRestore`) bij afsluiten.
 
 ## Belangrijke technische lessen (uit de prototypes)
 
