@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.profraw
+*.xcresult
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Android-hulpmiddelen: worden gedownload met scripts/fetch-deps.sh
+Vendor/*
+!Vendor/.gitkeep
+
+# Officiële toestelframes (Apple/Google/Samsung) — licentie staat herverspreiden niet toe
+AppShowCase/Resources/Frames/Imported/
