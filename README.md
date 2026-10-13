@@ -52,7 +52,7 @@ AppShowCase gebruikt bij voorkeur een al geïnstalleerde `adb` (Android Studio o
 | 0 | Fundament: project, structuur, vensters, menubalk | ✅ |
 | 1 | iOS live beeld | ✅ |
 | 2 | Android live beeld (scrcpy) | ✅ |
-| 3 | Echte toestelframes | 🔨 te testen |
+| 3 | Echte toestelframes | ✅ |
 | 4 | Screenshot, opname, demo-functies | ⏳ |
 | 5 | Afwerking en release-build | ⏳ |
 
