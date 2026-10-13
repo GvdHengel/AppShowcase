@@ -34,11 +34,13 @@ Kies in Xcode het schema **AppShowCase** en druk op ⌘R.
 ### Android
 1. Open **Instellingen → Over de telefoon** en tik 7× op **Build-nummer**.
 2. Open **Instellingen → Systeem → Ontwikkelaarsopties** en zet **USB-foutopsporing** aan.
-3. Sluit het toestel aan en kies **Toestaan** in de melding op het toestel.
+3. Sluit het toestel aan en kies **Toestaan** in de melding op het toestel (vink "Altijd toestaan" aan).
+
+AppShowCase gebruikt bij voorkeur een al geïnstalleerde `adb` (Android Studio of Homebrew), zodat het niet botst met Android Studio. Is die er niet, dan wordt de meegeleverde `adb` uit `Vendor/` gebruikt.
 
 ## Bekende beperkingen
 
-- iOS: het toestel moet ontgrendeld zijn; tegelijk QuickTime gebruiken voor hetzelfde toestel kan conflicteren.
+- iOS: het toestel moet ontgrendeld zijn; tegelijk QuickTime gebruiken voor hetzelfde toestel kan conflicteren (een duidelijke melding hiervoor staat gepland).
 - iOS: het scherm wakker houden of aanrakingen tonen kan niet vanaf de Mac (Android wel).
 - De app is niet door Apple genotariseerd. Bij een gedownloade build: **Systeeminstellingen → Privacy en beveiliging → Open toch**.
 
@@ -47,8 +49,8 @@ Kies in Xcode het schema **AppShowCase** en druk op ⌘R.
 | Fase | Inhoud | Status |
 |---|---|---|
 | 0 | Fundament: project, structuur, vensters, menubalk | ✅ |
-| 1 | iOS live beeld | 🔨 te testen |
-| 2 | Android live beeld (scrcpy) | ⏳ |
+| 1 | iOS live beeld | ✅ |
+| 2 | Android live beeld (scrcpy) | 🔨 te testen |
 | 3 | Echte toestelframes | ⏳ |
 | 4 | Screenshot, opname, demo-functies | ⏳ |
 | 5 | Afwerking en release-build | ⏳ |

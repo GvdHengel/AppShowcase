@@ -46,6 +46,8 @@ AppShowCase/
 - Per toestel een eigen `scid` en lokale poort; socketnaam `scrcpy_<scid als 8 hex-cijfers>`.
 - Nooit `adb kill-server`, `pkill -f scrcpy` of `forward --remove-all`: alleen eigen tunnels opruimen (Android Studio kan dezelfde adb-server gebruiken).
 - stdout/stderr van het server-proces continu uitlezen, anders loopt het vast.
+- Implementatie: `ADBLocator` (voorkeur geïnstalleerde adb boven `Vendor/adb`), `AndroidDiscovery` (`track-devices` + `devices -l`), `ScrcpyServer` (actor: push naar `/data/local/tmp/appshowcase-scrcpy-server.jar`, `forward tcp:0`), `ScrcpyStreamParser` (puur, getest), `H264Decoder` (Annex B → AVCC → `VTDecompressionSession` → BGRA), `AndroidScrcpySource` (NWConnection; opnieuw verbinden tot de dummy-byte binnenkomt).
+- Bij afsluiten ruimt `ADBCleanup` onze eigen processen en tunnels op.
 
 ## Documentatie
 

@@ -41,6 +41,8 @@ struct DeviceInfo: Identifiable, Hashable, Sendable {
     var name: String
     /// Modelaanduiding indien bekend, bijv. "iPhone11,2" of "Pixel 2".
     var model: String?
+    /// Als het toestel wel gezien wordt maar (nog) niet bruikbaar is, bijv. "Tik op Toestaan".
+    var statusMessage: String? = nil
 
     var platform: Platform { id.platform }
 }

@@ -6,6 +6,7 @@ struct DeviceWindowView: View {
 
     @Environment(DeviceRegistry.self) private var registry
     @Environment(IOSDiscovery.self) private var iosDiscovery
+    @Environment(AndroidDiscovery.self) private var androidDiscovery
     @State private var session: MirrorSession?
 
     private var device: DeviceInfo? {
@@ -33,9 +34,14 @@ struct DeviceWindowView: View {
         }
         .navigationTitle(device?.name ?? "Toestel")
         .frame(minWidth: 240, minHeight: 300)
-        // Opnieuw verbinden zodra het toestel (weer) verschijnt of verdwijnt.
-        .task(id: device?.id) { connect() }
+        // Opnieuw verbinden zodra het toestel (weer) verschijnt, verdwijnt of bruikbaar wordt.
+        .task(id: connectionKey) { connect() }
         .onDisappear { session?.stop() }
+    }
+
+    private var connectionKey: String {
+        guard let device else { return "geen" }
+        return "\(device.id)|\(device.statusMessage ?? "gereed")"
     }
 
     private func aspectRatio(of session: MirrorSession) -> CGFloat {
@@ -55,6 +61,10 @@ struct DeviceWindowView: View {
             current.markUnavailable("Demo-toestel: geen live beeld.")
             return
         }
+        if let statusMessage = device.statusMessage {
+            current.markUnavailable(statusMessage)
+            return
+        }
 
         switch device.platform {
         case .iOS:
@@ -64,7 +74,12 @@ struct DeviceWindowView: View {
                 current.markUnavailable("Het toestel is niet meer beschikbaar. Sluit het opnieuw aan.")
             }
         case .android:
-            current.markUnavailable("Android-beeld volgt in fase 2.")
+            do {
+                let source = try androidDiscovery.makeSource(serial: device.id.rawID)
+                current.start(with: source)
+            } catch {
+                current.markUnavailable(error.localizedDescription)
+            }
         }
     }
 }

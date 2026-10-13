@@ -10,12 +10,15 @@ enum WindowID {
 struct AppShowCaseApp: App {
     @State private var registry: DeviceRegistry
     @State private var iosDiscovery: IOSDiscovery
+    @State private var androidDiscovery: AndroidDiscovery
 
     init() {
         let registry = DeviceRegistry()
         _registry = State(initialValue: registry)
         // Start direct: CoreMediaIO-vlag, camera-toestemming en iPhone-detectie.
         _iosDiscovery = State(initialValue: IOSDiscovery(registry: registry))
+        // Start direct: adb zoeken en Android-toestellen volgen.
+        _androidDiscovery = State(initialValue: AndroidDiscovery(registry: registry))
     }
 
     var body: some Scene {
@@ -24,6 +27,7 @@ struct AppShowCaseApp: App {
             DeviceListView()
                 .environment(registry)
                 .environment(iosDiscovery)
+                .environment(androidDiscovery)
         }
         .defaultSize(width: 340, height: 460)
 
@@ -32,6 +36,7 @@ struct AppShowCaseApp: App {
             DeviceWindowView(deviceID: deviceID)
                 .environment(registry)
                 .environment(iosDiscovery)
+                .environment(androidDiscovery)
         }
         .defaultSize(width: 420, height: 820)
 

@@ -5,6 +5,7 @@ import SwiftUI
 struct DeviceListView: View {
     @Environment(DeviceRegistry.self) private var registry
     @Environment(IOSDiscovery.self) private var iosDiscovery
+    @Environment(AndroidDiscovery.self) private var androidDiscovery
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -14,6 +15,10 @@ struct DeviceListView: View {
                     let devices = registry.devices(for: platform)
                     if platform == .iOS && iosDiscovery.authorization == .denied {
                         CameraAccessRow { iosDiscovery.recheckAuthorization() }
+                    } else if platform == .android && androidDiscovery.status == .adbMissing {
+                        Label(AndroidSetupError.adbMissing.errorDescription ?? "adb niet gevonden", systemImage: "wrench.and.screwdriver")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     } else if devices.isEmpty {
                         EmptyPlatformRow(platform: platform)
                     } else {
@@ -97,7 +102,12 @@ private struct DeviceRow: View {
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(device.name)
-                if let model = device.model {
+                if let statusMessage = device.statusMessage {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let model = device.model, model != device.name {
                     Text(model)
                         .font(.caption)
                         .foregroundStyle(.secondary)
