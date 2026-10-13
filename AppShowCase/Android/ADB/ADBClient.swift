@@ -43,10 +43,11 @@ struct ADBClient: Sendable {
                 }
 
                 // stdout en stderr tegelijk leeglezen, zodat een volle pipe het proces niet blokkeert.
+                // Zelfde QoS als deze thread: voorkomt een prioriteitsinversie-waarschuwing.
                 let errorBox = DataBox()
                 let group = DispatchGroup()
                 group.enter()
-                DispatchQueue.global(qos: .utility).async {
+                DispatchQueue.global(qos: .userInitiated).async {
                     errorBox.data = stderr.fileHandleForReading.readDataToEndOfFile()
                     group.leave()
                 }
