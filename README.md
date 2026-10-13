@@ -5,6 +5,7 @@ Toon het scherm van een **iPhone/iPad** of **Android-toestel** live op je Mac, i
 - Eén venster per toestel: kies het venster bij "venster delen", of deel je hele scherm om iOS en Android naast elkaar te laten zien.
 - Werkt via USB, zonder app op het toestel.
 - Alleen kijken, niet bedienen.
+- Generieke toestelframes (iPhone met notch/eiland/thuisknop, Android met randen/camera-gaatje, tablet), automatisch gekozen en per toestel aan te passen. Achtergrond donker, licht of transparant.
 - macOS 14 (Sonoma) of nieuwer, Intel en Apple Silicon.
 
 > **Status:** in ontwikkeling. Zie [Roadmap](#roadmap).
@@ -51,7 +52,7 @@ AppShowCase gebruikt bij voorkeur een al geïnstalleerde `adb` (Android Studio o
 | 0 | Fundament: project, structuur, vensters, menubalk | ✅ |
 | 1 | iOS live beeld | ✅ |
 | 2 | Android live beeld (scrcpy) | ✅ |
-| 3 | Echte toestelframes | ⏳ |
+| 3 | Echte toestelframes | 🔨 te testen |
 | 4 | Screenshot, opname, demo-functies | ⏳ |
 | 5 | Afwerking en release-build | ⏳ |
 

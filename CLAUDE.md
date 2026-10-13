@@ -22,11 +22,17 @@ AppShowCase/
 ├── Core/       Device/DeviceID/DeviceInfo, DeviceRegistry (@Observable), FrameSource (fase 1)
 ├── iOS/        (fase 1) CoreMediaIO + AVCaptureSession + AVCaptureVideoDataOutput
 ├── Android/    (fase 2) ADB/ en Scrcpy/: launcher, protocol-parser, VTDecompressionSession
-├── Rendering/  (fase 1) AVSampleBufferDisplayLayer-view, (fase 3) frame-compositie
-├── Frames/     (fase 3) datagedreven toestelframes
+├── Rendering/  VideoDisplayView (AVSampleBufferDisplayLayer), DeviceFrameView (behuizing + beeld + uitsparing)
+├── Frames/     DeviceFrameStyle (catalogus), FrameMatcher (auto-keuze), FrameLayout (geometrie, ook liggend)
 ├── Features/   (fase 4) screenshot, opname, Android demo-modus
 └── UI/         SwiftUI-views
 ```
+
+## Toestelframes
+
+- Eigen, generieke tekeningen in code (geen logo's of officiële afbeeldingen) zodat ze in de repo mogen.
+- Rekenen in staande coördinaten; liggend = canvas 90° tegen de klok in gedraaid (bovenkant toestel links). Het videobeeld komt al liggend binnen en wordt niet gedraaid.
+- Keuze en achtergrond per toestel in UserDefaults: `frame.<DeviceID>` ("auto" of frame-id) en `background.<DeviceID>`.
 
 ## Belangrijke technische lessen (uit de prototypes)
 

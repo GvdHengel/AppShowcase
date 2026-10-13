@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Venster voor één toestel: live beeld in een (voorlopig eenvoudig) toestelframe.
+/// Venster voor één toestel: live beeld in een toestelframe.
 struct DeviceWindowView: View {
     let deviceID: DeviceID?
 
@@ -9,35 +9,100 @@ struct DeviceWindowView: View {
     @Environment(AndroidDiscovery.self) private var androidDiscovery
     @State private var session: MirrorSession?
 
+    /// Per toestel onthouden: gekozen frame ("auto" of een frame-id) en achtergrond.
+    @AppStorage private var frameChoice: String
+    @AppStorage private var backgroundChoice: String
+
+    init(deviceID: DeviceID?) {
+        self.deviceID = deviceID
+        let key = deviceID?.description ?? "onbekend"
+        _frameChoice = AppStorage(wrappedValue: DeviceFrameStyle.automaticID, "frame.\(key)")
+        _backgroundChoice = AppStorage(wrappedValue: WindowBackground.dark.rawValue, "background.\(key)")
+    }
+
     private var device: DeviceInfo? {
         deviceID.flatMap { registry.device(for: $0) }
     }
 
+    private var background: WindowBackground {
+        WindowBackground(rawValue: backgroundChoice) ?? .dark
+    }
+
     var body: some View {
         ZStack {
-            Color(white: 0.13)
+            background.color
+                .ignoresSafeArea()
 
             if let device, let session {
-                PlaceholderBezel(screenAspectRatio: aspectRatio(of: session), platform: device.platform) {
+                DeviceFrameView(style: frameStyle(for: device), screenSize: screenSize) {
                     VideoDisplayView(videoLayer: session.displayLayer)
                 }
                 .overlay { MirrorStateOverlay(state: session.state, retry: connect) }
-                .padding(24)
+                .padding(background == .transparent ? 10 : 24)
+                .contextMenu { displayOptions }
             } else if device == nil {
                 ContentUnavailableView(
                     "Toestel niet verbonden",
                     systemImage: "cable.connector.slash",
                     description: Text("Sluit het toestel opnieuw aan. Dit venster pakt het automatisch weer op.")
                 )
-                .foregroundStyle(.white)
+                .foregroundStyle(background == .light ? Color.primary : Color.white)
             }
         }
+        .background(WindowConfigurator(transparent: background == .transparent))
         .navigationTitle(device?.name ?? "Toestel")
         .navigationSubtitle(resolutionText)
+        .toolbar {
+            ToolbarItem {
+                Menu {
+                    displayOptions
+                } label: {
+                    Label("Weergave", systemImage: "iphone.gen3")
+                }
+                .help("Toestelframe en achtergrond")
+            }
+        }
+        .toolbarBackground(background == .transparent ? .hidden : .automatic, for: .windowToolbar)
         .frame(minWidth: 240, minHeight: 300)
         // Opnieuw verbinden zodra het toestel (weer) verschijnt, verdwijnt of bruikbaar wordt.
         .task(id: connectionKey) { connect() }
         .onDisappear { session?.stop() }
+    }
+
+    // MARK: - Weergave-opties (toolbar én rechtermuisklik)
+
+    @ViewBuilder
+    private var displayOptions: some View {
+        Picker("Toestelframe", selection: $frameChoice) {
+            Text("Automatisch (\(automaticStyle.name))").tag(DeviceFrameStyle.automaticID)
+            ForEach(DeviceFrameStyle.choices(for: device?.platform)) { style in
+                Text(style.name).tag(style.id)
+            }
+        }
+        .pickerStyle(.inline)
+
+        Picker("Achtergrond", selection: $backgroundChoice) {
+            ForEach(WindowBackground.allCases) { option in
+                Text(option.name).tag(option.rawValue)
+            }
+        }
+        .pickerStyle(.inline)
+    }
+
+    private var automaticStyle: DeviceFrameStyle {
+        FrameMatcher.automaticStyle(platform: device?.platform ?? .iOS, screenSize: session?.videoSize)
+    }
+
+    private func frameStyle(for device: DeviceInfo) -> DeviceFrameStyle {
+        if frameChoice != DeviceFrameStyle.automaticID, let chosen = DeviceFrameStyle.style(id: frameChoice) {
+            return chosen
+        }
+        return automaticStyle
+    }
+
+    /// Tot het eerste frame binnen is: een gangbare staande telefoonverhouding.
+    private var screenSize: CGSize {
+        session?.videoSize ?? CGSize(width: 9, height: 19.5)
     }
 
     /// Bijv. "1080 × 1920" — handig om te controleren of de beeldverhouding klopt.
@@ -46,14 +111,11 @@ struct DeviceWindowView: View {
         return "\(Int(size.width)) × \(Int(size.height))"
     }
 
+    // MARK: - Verbinden
+
     private var connectionKey: String {
         guard let device else { return "geen" }
         return "\(device.id)|\(device.statusMessage ?? "gereed")"
-    }
-
-    private func aspectRatio(of session: MirrorSession) -> CGFloat {
-        guard let size = session.videoSize, size.height > 0 else { return 9.0 / 19.5 }
-        return size.width / size.height
     }
 
     private func connect() {
