@@ -33,10 +33,17 @@ struct DeviceWindowView: View {
             }
         }
         .navigationTitle(device?.name ?? "Toestel")
+        .navigationSubtitle(resolutionText)
         .frame(minWidth: 240, minHeight: 300)
         // Opnieuw verbinden zodra het toestel (weer) verschijnt, verdwijnt of bruikbaar wordt.
         .task(id: connectionKey) { connect() }
         .onDisappear { session?.stop() }
+    }
+
+    /// Bijv. "1080 × 1920" — handig om te controleren of de beeldverhouding klopt.
+    private var resolutionText: String {
+        guard let size = session?.videoSize else { return "" }
+        return "\(Int(size.width)) × \(Int(size.height))"
     }
 
     private var connectionKey: String {

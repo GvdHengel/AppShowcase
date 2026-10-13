@@ -62,6 +62,8 @@ final class H264Decoder {
     private var pps: [UInt8]?
     private var formatDescription: CMVideoFormatDescription?
     private var session: VTDecompressionSession?
+    /// Zichtbare schermmaat volgens de SPS (na cropping), bijv. 1080×1920 i.p.v. gecodeerd 1088×1920.
+    private var displaySize: CGSize = .zero
 
     init(deliveryQueue: DispatchQueue) {
         self.deliveryQueue = deliveryQueue
@@ -107,11 +109,12 @@ final class H264Decoder {
               let sample = Self.makeSampleBuffer(avcc: AnnexB.toAVCC(frameUnits), format: formatDescription, pts: packet.pts)
         else { return }
 
+        let size = displaySize
         let status = VTDecompressionSessionDecodeFrame(
             session, sampleBuffer: sample, flags: [], infoFlagsOut: nil
         ) { [weak self] status, _, imageBuffer, _, _ in
             guard status == noErr, let imageBuffer else { return }
-            self?.deliver(imageBuffer)
+            self?.deliver(imageBuffer, displaySize: size)
         }
 
         if status == kVTInvalidSessionErr {
@@ -169,8 +172,12 @@ final class H264Decoder {
 
         formatDescription = newFormat
         session = newSession
-        let dimensions = CMVideoFormatDescriptionGetDimensions(newFormat)
-        print("[H264Decoder] decoder klaar: \(dimensions.width)×\(dimensions.height)")
+        // H.264 codeert in blokken van 16 px; de SPS bevat de cropping naar de echte schermmaat.
+        let coded = CMVideoFormatDescriptionGetDimensions(newFormat)
+        displaySize = CMVideoFormatDescriptionGetPresentationDimensions(
+            newFormat, usePixelAspectRatio: true, useCleanAperture: true
+        )
+        print("[H264Decoder] decoder klaar: gecodeerd \(coded.width)×\(coded.height), zichtbaar \(Int(displaySize.width))×\(Int(displaySize.height))")
     }
 
     private static func makeSampleBuffer(avcc: [UInt8], format: CMVideoFormatDescription, pts: UInt64) -> CMSampleBuffer? {
@@ -219,8 +226,30 @@ final class H264Decoder {
         return sampleBuffer
     }
 
+    /// Als de decoder een buffer met opvulling (bijv. 1088 i.p.v. 1080 px breed) levert zonder
+    /// clean aperture, voegen we die toe — anders toont de weergave de opvulrand en wordt het beeld
+    /// iets samengeperst. H.264-cropping snijdt rechts/onder af; clean aperture rekent vanaf het midden.
+    private static func applyCropIfMissing(to imageBuffer: CVImageBuffer, displaySize: CGSize) {
+        guard displaySize.width > 0, displaySize.height > 0 else { return }
+        let width = CGFloat(CVPixelBufferGetWidth(imageBuffer))
+        let height = CGFloat(CVPixelBufferGetHeight(imageBuffer))
+        guard width > displaySize.width || height > displaySize.height,
+              CVBufferCopyAttachment(imageBuffer, kCVImageBufferCleanApertureKey, nil) == nil
+        else { return }
+
+        let aperture: [CFString: Any] = [
+            kCVImageBufferCleanApertureWidthKey: displaySize.width,
+            kCVImageBufferCleanApertureHeightKey: displaySize.height,
+            kCVImageBufferCleanApertureHorizontalOffsetKey: -(width - displaySize.width) / 2,
+            kCVImageBufferCleanApertureVerticalOffsetKey: -(height - displaySize.height) / 2,
+        ]
+        CVBufferSetAttachment(imageBuffer, kCVImageBufferCleanApertureKey, aperture as CFDictionary, .shouldPropagate)
+    }
+
     /// Verpakt een gedecodeerde pixelbuffer als sample buffer die direct getoond wordt.
-    private func deliver(_ imageBuffer: CVImageBuffer) {
+    private func deliver(_ imageBuffer: CVImageBuffer, displaySize: CGSize) {
+        Self.applyCropIfMissing(to: imageBuffer, displaySize: displaySize)
+
         var format: CMVideoFormatDescription?
         guard CMVideoFormatDescriptionCreateForImageBuffer(
             allocator: kCFAllocatorDefault, imageBuffer: imageBuffer, formatDescriptionOut: &format
@@ -241,7 +270,8 @@ final class H264Decoder {
         ) == noErr, let sampleBuffer else { return }
 
         SampleBufferTools.markDisplayImmediately(sampleBuffer)
-        let size = CVImageBufferGetCleanRect(imageBuffer).size
+        let cleanRect = CVImageBufferGetCleanRect(imageBuffer).size
+        let size = displaySize.width > 0 && displaySize.height > 0 ? displaySize : cleanRect
 
         deliveryQueue.async { [weak self] in
             self?.onFrame?(sampleBuffer, size)
