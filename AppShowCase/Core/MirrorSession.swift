@@ -43,10 +43,10 @@ final class MirrorSession {
         source = newSource
         state = .connecting
 
-        let layer = displayLayer
+        let sink = DisplayLayerSink(layer: displayLayer)
         let tap = frameTap
         newSource.frameHandler = { sampleBuffer in
-            MirrorSession.enqueue(sampleBuffer, on: layer)
+            MirrorSession.enqueue(sampleBuffer, on: sink.layer)
             tap.receive(sampleBuffer)
         }
         newSource.eventHandler = { [weak self] event in
@@ -118,5 +118,15 @@ final class MirrorSession {
             if layer.status == .failed { layer.flush() }
             layer.enqueue(sampleBuffer)
         }
+    }
+}
+
+/// `AVSampleBufferDisplayLayer` mag vanaf een achtergrond-queue gevuld worden, maar is niet als
+/// `Sendable` gemarkeerd. Dit doosje maakt die (gedocumenteerde) uitzondering expliciet.
+private final class DisplayLayerSink: @unchecked Sendable {
+    let layer: AVSampleBufferDisplayLayer
+
+    init(layer: AVSampleBufferDisplayLayer) {
+        self.layer = layer
     }
 }

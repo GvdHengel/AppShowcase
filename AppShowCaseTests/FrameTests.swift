@@ -92,7 +92,7 @@ struct DeviceFrameStyleTests {
     @Test func choicesStartWithOwnPlatformAndEndWithNone() {
         let android = DeviceFrameStyle.choices(for: .android)
         #expect(android.first?.platform == .android)
-        #expect(android.last == .none)
+        #expect(android.last?.id == DeviceFrameStyle.none.id)
         #expect(Set(android.map(\.id)).count == DeviceFrameStyle.all.count)
     }
 

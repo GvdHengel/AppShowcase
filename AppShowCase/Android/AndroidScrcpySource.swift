@@ -6,8 +6,8 @@ import Network
 ///
 /// Stroom: server starten → TCP via adb-tunnel → `ScrcpyStreamParser` → `H264Decoder` → frames.
 /// `start`/`stop` worden op de main thread aangeroepen; al het netwerk- en decodeerwerk
-/// gebeurt op één eigen seriële queue.
-final class AndroidScrcpySource: FrameSource {
+/// gebeurt op één eigen seriële queue. Daardoor veilig te delen tussen threads (`@unchecked Sendable`).
+final class AndroidScrcpySource: FrameSource, @unchecked Sendable {
     var frameHandler: (@Sendable (CMSampleBuffer) -> Void)?
     var eventHandler: (@Sendable (SourceEvent) -> Void)?
 

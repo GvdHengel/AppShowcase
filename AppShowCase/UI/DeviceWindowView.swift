@@ -15,6 +15,7 @@ struct DeviceWindowView: View {
     @State private var recordingStarted: Date?
     @State private var toast: Toast?
     @State private var windowReference = WindowReference()
+    @State private var isHovering = false
 
     /// Per toestel onthouden: frame ("auto" of frame-id), achtergrond en altijd bovenop.
     @AppStorage private var frameChoice: String
@@ -70,20 +71,22 @@ struct DeviceWindowView: View {
                 .foregroundStyle(background == .light ? Color.primary : Color.white)
             }
         }
-        .overlay(alignment: .bottom) { toastView }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) { isHovering = hovering }
+        }
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 8) {
+                toastView
+                controlBar
+            }
+            .padding(.bottom, 12)
+        }
+        .background(keyboardShortcuts)
         .background(WindowConfigurator(transparent: background == .transparent, floating: floating, reference: windowReference))
         .navigationTitle(device?.name ?? "Toestel")
         .navigationSubtitle(resolutionText)
         .toolbar {
             ToolbarItemGroup {
-                if let recordingStarted {
-                    TimelineView(.periodic(from: recordingStarted, by: 1)) { context in
-                        Label(Self.elapsed(since: recordingStarted, now: context.date), systemImage: "record.circle.fill")
-                            .labelStyle(.titleAndIcon)
-                            .foregroundStyle(.red)
-                            .monospacedDigit()
-                    }
-                }
                 captureButtons
                 Menu {
                     displayOptions
@@ -118,7 +121,6 @@ struct DeviceWindowView: View {
         Button(action: takeScreenshot) {
             Label("Schermafbeelding", systemImage: "camera")
         }
-        .keyboardShortcut("s", modifiers: [.command, .shift])
         .disabled(!isMirroring)
         .help("Schermafbeelding mét frame (⇧⌘S) — bewaard in Afbeeldingen/AppShowCase en gekopieerd")
 
@@ -126,7 +128,6 @@ struct DeviceWindowView: View {
             Label(recorder == nil ? "Opnemen" : "Stop opname",
                   systemImage: recorder == nil ? "record.circle" : "stop.circle.fill")
         }
-        .keyboardShortcut("r", modifiers: [.command, .shift])
         .disabled(recorder == nil && !isMirroring)
         .help("Opname mét frame (⇧⌘R) — bewaard in Films/AppShowCase")
     }
@@ -193,9 +194,75 @@ struct DeviceWindowView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(.regularMaterial, in: Capsule())
-            .padding(.bottom, 14)
             .transition(.opacity)
         }
+    }
+
+    /// Zwevende balk onderin: tijdens een opname altijd zichtbaar (timer + stop),
+    /// anders alleen als de muis boven het venster is. Komt niet in de opname zelf terecht.
+    @ViewBuilder
+    private var controlBar: some View {
+        if let recordingStarted {
+            HStack(spacing: 10) {
+                TimelineView(.periodic(from: recordingStarted, by: 1)) { context in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 9, height: 9)
+                        Text(Self.elapsed(since: recordingStarted, now: context.date))
+                            .monospacedDigit()
+                    }
+                }
+                Button(action: stopRecording) {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .controlSize(.small)
+            }
+            .font(.callout)
+            .padding(.leading, 12)
+            .padding(.trailing, 6)
+            .padding(.vertical, 5)
+            .background(.regularMaterial, in: Capsule())
+            .help("Opname loopt — Stop of ⇧⌘R")
+            .transition(.opacity)
+        } else if isHovering && isMirroring {
+            HStack(spacing: 2) {
+                Button(action: takeScreenshot) {
+                    Image(systemName: "camera")
+                        .frame(width: 30, height: 26)
+                }
+                .help("Schermafbeelding mét frame (⇧⌘S)")
+                Button(action: startRecording) {
+                    Image(systemName: "record.circle")
+                        .foregroundStyle(.red)
+                        .frame(width: 30, height: 26)
+                }
+                .help("Opname mét frame starten (⇧⌘R)")
+            }
+            .buttonStyle(.borderless)
+            .font(.title3)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.regularMaterial, in: Capsule())
+            .transition(.opacity)
+        }
+    }
+
+    /// Sneltoetsen die altijd werken, ook als de knoppen in de werkbalk zijn weggevallen.
+    private var keyboardShortcuts: some View {
+        ZStack {
+            Button("", action: takeScreenshot)
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(!isMirroring)
+            Button("", action: toggleRecording)
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(recorder == nil && !isMirroring)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Frame en maat
