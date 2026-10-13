@@ -47,7 +47,7 @@ Kies in Xcode het schema **AppShowCase** en druk op ⌘R.
 | Fase | Inhoud | Status |
 |---|---|---|
 | 0 | Fundament: project, structuur, vensters, menubalk | ✅ |
-| 1 | iOS live beeld | ⏳ |
+| 1 | iOS live beeld | 🔨 te testen |
 | 2 | Android live beeld (scrcpy) | ⏳ |
 | 3 | Echte toestelframes | ⏳ |
 | 4 | Screenshot, opname, demo-functies | ⏳ |

@@ -8,13 +8,22 @@ enum WindowID {
 
 @main
 struct AppShowCaseApp: App {
-    @State private var registry = DeviceRegistry()
+    @State private var registry: DeviceRegistry
+    @State private var iosDiscovery: IOSDiscovery
+
+    init() {
+        let registry = DeviceRegistry()
+        _registry = State(initialValue: registry)
+        // Start direct: CoreMediaIO-vlag, camera-toestemming en iPhone-detectie.
+        _iosDiscovery = State(initialValue: IOSDiscovery(registry: registry))
+    }
 
     var body: some Scene {
         // Overzicht van alle aangesloten toestellen.
         Window("Apparaten", id: WindowID.deviceList) {
             DeviceListView()
                 .environment(registry)
+                .environment(iosDiscovery)
         }
         .defaultSize(width: 340, height: 460)
 
@@ -22,6 +31,7 @@ struct AppShowCaseApp: App {
         WindowGroup("Toestel", id: WindowID.device, for: DeviceID.self) { $deviceID in
             DeviceWindowView(deviceID: deviceID)
                 .environment(registry)
+                .environment(iosDiscovery)
         }
         .defaultSize(width: 420, height: 820)
 

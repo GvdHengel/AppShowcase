@@ -34,8 +34,10 @@ AppShowCase/
 - Zet **vóór** elke discovery `kCMIOHardwarePropertyAllowScreenCaptureDevices = 1` (CoreMediaIO), anders verschijnt het schermdevice niet.
 - Vraag camera-toegang **eerst** en ontdek pas daarna; zonder toestemming geeft `DiscoverySession` een lege lijst.
 - Schermdevice = `AVCaptureDevice.DiscoverySession(deviceTypes: [.external], mediaType: .muxed)`. Het `.video`-device met "Camera" in de naam is Continuity Camera, niet het scherm.
-- Geen audio-output toevoegen (echo).
+- Geen audio-output toevoegen (echo). Het schermdevice is wel *muxed* (beeld + geluid): daarom staan `NSMicrophoneUsageDescription` en de entitlement `device.audio-input` erin.
+- Weergave via `AVCaptureVideoDataOutput` (BGRA) → `AVSampleBufferDisplayLayer` met `DisplayImmediately`; zelfde pad als Android.
 - Onschadelijke console-ruis: `AddInstanceForFactory`, `CMIO_DAL_CMIOExtension_*`, `CMIOObjectGetPropertyData Error: 2003332927`, `Fig assert "surfaceValue"`.
+- Ook onschadelijk (ad-hoc signing, App Intents/Shortcuts): `connection to service named com.apple.linkd.autoShortcut`, `Unable to re-register with Process Instance Registry`.
 
 ### Android (scrcpy, vastgezet op 3.3.1 — zie `scripts/fetch-deps.sh`)
 - De server moet **exact** dezelfde versie hebben als de client-parameter; scrcpy 4.x heeft een ander videoprotocol (sessie-pakketten) en vraagt om aangepaste parsercode.

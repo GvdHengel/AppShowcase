@@ -8,6 +8,9 @@
 	<!-- Hardened runtime: iPhone-scherm komt binnen als (camera)capture-device. -->
 	<key>com.apple.security.device.camera</key>
 	<true/>
+	<!-- Het iPhone-schermdevice is "muxed" (beeld + geluid); macOS kan daarom microfoontoegang vereisen. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
 	<!-- CoreMediaIO laadt Apple's schermcapture-plugin; ad-hoc ondertekende app heeft dit nodig. -->
 	<key>com.apple.security.cs.disable-library-validation</key>
 	<true/>

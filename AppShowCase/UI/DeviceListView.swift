@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 
 /// Lijst met aangesloten toestellen, gegroepeerd per platform.
 struct DeviceListView: View {
     @Environment(DeviceRegistry.self) private var registry
+    @Environment(IOSDiscovery.self) private var iosDiscovery
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -10,7 +12,9 @@ struct DeviceListView: View {
             ForEach(Platform.allCases, id: \.self) { platform in
                 Section(platform.displayName) {
                     let devices = registry.devices(for: platform)
-                    if devices.isEmpty {
+                    if platform == .iOS && iosDiscovery.authorization == .denied {
+                        CameraAccessRow { iosDiscovery.recheckAuthorization() }
+                    } else if devices.isEmpty {
                         EmptyPlatformRow(platform: platform)
                     } else {
                         ForEach(devices) { device in
@@ -25,6 +29,36 @@ struct DeviceListView: View {
         .listStyle(.sidebar)
         .navigationTitle("Apparaten")
         .modifier(DeveloperToolbar(registry: registry))
+        // Na terugkomen uit Systeeminstellingen opnieuw controleren.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            iosDiscovery.recheckAuthorization()
+        }
+    }
+}
+
+/// Uitleg als camera-toegang (nodig voor het iPhone-scherm) geweigerd is.
+private struct CameraAccessRow: View {
+    let recheck: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Camera-toegang nodig", systemImage: "camera.fill")
+                .foregroundStyle(.orange)
+            Text("macOS levert het iPhone-scherm aan als camerabron. Sta AppShowCase toe onder Privacy en beveiliging → Camera.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("Open Systeeminstellingen") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                Button("Opnieuw controleren", action: recheck)
+            }
+            .controlSize(.small)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -102,10 +136,4 @@ private struct EmptyPlatformRow: View {
             return "Sluit je toestel aan via USB en zet USB-foutopsporing aan in de Ontwikkelaarsopties."
         }
     }
-}
-
-#Preview {
-    DeviceListView()
-        .environment(DeviceRegistry())
-        .frame(width: 340, height: 460)
 }
