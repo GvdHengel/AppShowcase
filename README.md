@@ -91,7 +91,7 @@ Zie [CLAUDE.md](CLAUDE.md) voor architectuur en technische keuzes.
 | 2 | Android live beeld (scrcpy) | ✅ |
 | 3 | Toestelframes | ✅ |
 | 4 | Schermafbeelding, opname, demo-functies | ✅ |
-| 5 | Afwerking: QuickTime-melding, hulp, instellingen, icoon, release | 🔨 te testen |
+| 5 | Afwerking: QuickTime-melding, hulp, instellingen, icoon, release | ✅ |
 | 6 | Automatische toestelherkenning (exact model) en officiële frames importeren | 💡 idee |
 
 ## Met dank aan
