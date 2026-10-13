@@ -18,6 +18,22 @@ if [[ ! -f Vendor/adb || ! -f Vendor/scrcpy-server ]]; then
   ./scripts/fetch-deps.sh
 fi
 
+# xcodebuild heeft de volledige Xcode nodig. Staat xcode-select op de losse Command Line Tools,
+# zoek Xcode dan zelf en gebruik die alleen voor dit script (geen sudo nodig).
+if ! xcodebuild -version >/dev/null 2>&1; then
+  XCODE_APP="$(mdfind "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'" 2>/dev/null | head -n 1)"
+  [[ -n "$XCODE_APP" ]] || XCODE_APP="/Applications/Xcode.app"
+  if [[ -d "$XCODE_APP/Contents/Developer" ]]; then
+    export DEVELOPER_DIR="$XCODE_APP/Contents/Developer"
+    echo "▸ Xcode gebruikt: $XCODE_APP"
+  else
+    echo "✗ Xcode niet gevonden. Installeer Xcode, of kies hem met:"
+    echo "  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+    exit 1
+  fi
+fi
+xcodebuild -version | head -n 1 | sed 's/^/  /'
+
 echo "▸ Release bouwen (arm64 + x86_64)…"
 rm -rf "$BUILD/Release"
 xcodebuild \

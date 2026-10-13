@@ -46,7 +46,8 @@ AppShowCase/
 - Instellingen in `AppSettingsKey` (UserDefaults/`@AppStorage`); Android-kwaliteit (`AndroidQuality`) gaat via `ScrcpyServer.serverArguments` naar de server.
 - Hulpvenster (`HelpView`, ⌘?), instellingen (`SettingsView`, ⌘,), Over-venster met scrcpy-vermelding (`AppCommands`).
 - App-icoon: eigen ontwerp (twee generieke telefoons), PNG's in `AppIcon.appiconset`.
-- Release: `scripts/build-release.sh` (Universal via `-target`, ad-hoc, zip met `ditto`; `--publish` maakt GitHub Release met `docs/release-notes-<versie>.md`).
+- QuickTime en AppShowCase kunnen op macOS 26 + iPhone Xs (iOS 26) tegelijk het iPhone-scherm opnemen (getest); de QuickTime-kaart verschijnt alleen als er géén beeld is.
+- Release: `scripts/build-release.sh` (vindt zelf Xcode via `DEVELOPER_DIR` als xcode-select op de Command Line Tools staat) (Universal via `-target`, ad-hoc, zip met `ditto`; `--publish` maakt GitHub Release met `docs/release-notes-<versie>.md`).
 
 ## Belangrijke technische lessen (uit de prototypes)
 
